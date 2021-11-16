@@ -226,6 +226,13 @@ extern Oid GetReferencingTableId(Oid foreignKeyId);
 extern bool RelationInvolvedInAnyNonInheritedForeignKeys(Oid relationId);
 
 
+/* foreign_server.c - forward declarations */
+extern List * PreprocessCreateForeignServerStmt(Node *node, const char *queryString,
+												ProcessUtilityContext
+												processUtilityContext);
+extern List * PostprocessCreateForeignServerStmt(Node *node, const char *queryString);
+extern ObjectAddress CreateForeignServerStmtObjectAddress(Node *node, bool missing_ok);
+
 /* function.c - forward declarations */
 extern List * PreprocessCreateFunctionStmt(Node *stmt, const char *queryString,
 										   ProcessUtilityContext processUtilityContext);

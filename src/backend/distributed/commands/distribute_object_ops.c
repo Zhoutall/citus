@@ -177,6 +177,13 @@ static DistributeObjectOps Any_CreatePolicy = {
 	.address = NULL,
 	.markDistributed = false,
 };
+static DistributeObjectOps Any_CreateForeignServer = {
+	.deparse = NULL,
+	.qualify = NULL,
+	.preprocess = PreprocessCreateForeignServerStmt,
+	.postprocess = PostprocessCreateForeignServerStmt,
+	.address = CreateForeignServerStmtObjectAddress,
+};
 static DistributeObjectOps Any_CreateStatistics = {
 	.deparse = DeparseCreateStatisticsStmt,
 	.qualify = QualifyCreateStatisticsStmt,
@@ -918,6 +925,11 @@ GetDistributeObjectOps(Node *node)
 		case T_CreatePolicyStmt:
 		{
 			return &Any_CreatePolicy;
+		}
+
+		case T_CreateForeignServerStmt:
+		{
+			return &Any_CreateForeignServer;
 		}
 
 		case T_CreateStatsStmt:
