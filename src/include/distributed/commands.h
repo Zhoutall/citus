@@ -230,6 +230,9 @@ extern bool RelationInvolvedInAnyNonInheritedForeignKeys(Oid relationId);
 extern List * PreprocessCreateForeignServerStmt(Node *node, const char *queryString,
 												ProcessUtilityContext
 												processUtilityContext);
+extern List * PreprocessDropForeignServerStmt(Node *node, const char *queryString,
+												ProcessUtilityContext
+												processUtilityContext);
 extern List * PostprocessCreateForeignServerStmt(Node *node, const char *queryString);
 extern ObjectAddress CreateForeignServerStmtObjectAddress(Node *node, bool missing_ok);
 

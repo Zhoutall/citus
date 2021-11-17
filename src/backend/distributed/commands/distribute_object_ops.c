@@ -304,6 +304,13 @@ static DistributeObjectOps Extension_Drop = {
 	.address = NULL,
 	.markDistributed = false,
 };
+static DistributeObjectOps ForeignServer_Drop = {
+	.deparse = DeparseDropForeignServerStmt,
+	.qualify = NULL,
+	.preprocess = PreprocessDropForeignServerStmt,
+	.postprocess = NULL,
+	.address = NULL,
+};
 static DistributeObjectOps ForeignTable_AlterTable = {
 	.deparse = NULL,
 	.qualify = NULL,
@@ -987,6 +994,11 @@ GetDistributeObjectOps(Node *node)
 				case OBJECT_FUNCTION:
 				{
 					return &Function_Drop;
+				}
+
+				case OBJECT_FOREIGN_SERVER:
+				{
+					return &ForeignServer_Drop;
 				}
 
 				case OBJECT_INDEX:
