@@ -27,8 +27,6 @@ PreprocessCreateForeignServerStmt(Node *node, const char *queryString,
 {
 	EnsureCoordinator();
 
-	queryString = WrapCreateOrReplace(queryString);
-
 	/* to prevent recursion with mx we disable ddl propagation */
 	List *commands = list_make3(DISABLE_DDL_PROPAGATION,
 								(void *) queryString,
