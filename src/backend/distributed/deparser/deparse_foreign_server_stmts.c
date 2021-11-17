@@ -24,9 +24,9 @@ static void AppendBehavior(StringInfo buf, DropStmt *stmt);
 char *
 DeparseDropForeignServerStmt(Node *node)
 {
-    DropStmt *stmt = castNode(DropStmt, node);
+	DropStmt *stmt = castNode(DropStmt, node);
 
-    Assert(stmt->removeType == OBJECT_FOREIGN_SERVER);
+	Assert(stmt->removeType == OBJECT_FOREIGN_SERVER);
 
 	StringInfoData str;
 	initStringInfo(&str);
@@ -40,16 +40,16 @@ DeparseDropForeignServerStmt(Node *node)
 static void
 AppendDropForeignServerStmt(StringInfo buf, DropStmt *stmt)
 {
-    appendStringInfoString(buf, "DROP SERVER ");
+	appendStringInfoString(buf, "DROP SERVER ");
 
-    if (stmt->missing_ok)
-    {
-        appendStringInfoString(buf, "IF EXISTS ");
-    }
+	if (stmt->missing_ok)
+	{
+		appendStringInfoString(buf, "IF EXISTS ");
+	}
 
-    AppendServerNames(buf, stmt);
+	AppendServerNames(buf, stmt);
 
-    AppendBehavior(buf, stmt);
+	AppendBehavior(buf, stmt);
 }
 
 
@@ -59,26 +59,26 @@ AppendServerNames(StringInfo buf, DropStmt *stmt)
 	Value *serverValue = NULL;
 	foreach_ptr(serverValue, stmt->objects)
 	{
-        char *serverString = strVal(serverValue);
-        appendStringInfo(buf, "%s", serverString);
+		char *serverString = strVal(serverValue);
+		appendStringInfo(buf, "%s", serverString);
 
 		if (serverValue != llast(stmt->objects))
 		{
 			appendStringInfoString(buf, ", ");
 		}
-    }
+	}
 }
 
 
 static void
 AppendBehavior(StringInfo buf, DropStmt *stmt)
 {
-    if (stmt->behavior == DROP_CASCADE)
-    {
-        appendStringInfoString(buf, " CASCADE");
-    }
-    else if (stmt->behavior == DROP_RESTRICT)
-    {
-        appendStringInfoString(buf, " RESTRICT");
-    }
+	if (stmt->behavior == DROP_CASCADE)
+	{
+		appendStringInfoString(buf, " CASCADE");
+	}
+	else if (stmt->behavior == DROP_RESTRICT)
+	{
+		appendStringInfoString(buf, " RESTRICT");
+	}
 }

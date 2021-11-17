@@ -18,7 +18,6 @@
 #include "distributed/metadata/distobject.h"
 #include "distributed/metadata_sync.h"
 #include "distributed/worker_transaction.h"
-#include "distributed/worker_create_or_replace.h"
 #include "foreign/foreign.h"
 #include "nodes/primnodes.h"
 
