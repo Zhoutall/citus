@@ -46,9 +46,6 @@ extern void QualifyRenameCollationStmt(Node *stmt);
 extern void QualifyAlterCollationSchemaStmt(Node *stmt);
 extern void QualifyAlterCollationOwnerStmt(Node *stmt);
 
-/* forward declarations for deparse_fdw_stmts.c */
-extern char * DeparseDropFdwStmt(Node *node);
-
 /* forward declarations for deparse_foreign_server_stmts.c */
 extern char * DeparseDropForeignServerStmt(Node *node);
 

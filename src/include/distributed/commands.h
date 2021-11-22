@@ -225,14 +225,6 @@ extern Oid GetReferencedTableId(Oid foreignKeyId);
 extern Oid GetReferencingTableId(Oid foreignKeyId);
 extern bool RelationInvolvedInAnyNonInheritedForeignKeys(Oid relationId);
 
-/* foreign_data_wrapper.c - forward declarations */
-extern List * PreprocessCreateFdwStmt(Node *node, const char *queryString,
-									  ProcessUtilityContext processUtilityContext);
-extern List * PreprocessDropFdwStmt(Node *node, const char *queryString,
-									ProcessUtilityContext processUtilityContext);
-extern List * PostprocessCreateFdwStmt(Node *node, const char *queryString);
-extern ObjectAddress CreateFdwStmtObjectAddress(Node *node, bool missing_ok);
-
 /* foreign_server.c - forward declarations */
 extern List * PreprocessCreateForeignServerStmt(Node *node, const char *queryString,
 												ProcessUtilityContext

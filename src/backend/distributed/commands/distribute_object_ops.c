@@ -177,13 +177,6 @@ static DistributeObjectOps Any_CreatePolicy = {
 	.address = NULL,
 	.markDistributed = false,
 };
-static DistributeObjectOps Any_CreateFdw = {
-	.deparse = NULL,
-	.qualify = NULL,
-	.preprocess = PreprocessCreateFdwStmt,
-	.postprocess = PostprocessCreateFdwStmt,
-	.address = CreateFdwStmtObjectAddress,
-};
 static DistributeObjectOps Any_CreateForeignServer = {
 	.deparse = NULL,
 	.qualify = NULL,
@@ -310,13 +303,6 @@ static DistributeObjectOps Extension_Drop = {
 	.postprocess = NULL,
 	.address = NULL,
 	.markDistributed = false,
-};
-static DistributeObjectOps Fdw_Drop = {
-	.deparse = DeparseDropFdwStmt,
-	.qualify = NULL,
-	.preprocess = PreprocessDropFdwStmt,
-	.postprocess = NULL,
-	.address = NULL,
 };
 static DistributeObjectOps ForeignServer_Drop = {
 	.deparse = DeparseDropForeignServerStmt,
@@ -943,11 +929,6 @@ GetDistributeObjectOps(Node *node)
 			return &Any_CreateFunction;
 		}
 
-		case T_CreateFdwStmt:
-		{
-			return &Any_CreateFdw;
-		}
-
 		case T_CreateForeignServerStmt:
 		{
 			return &Any_CreateForeignServer;
@@ -1008,11 +989,6 @@ GetDistributeObjectOps(Node *node)
 				case OBJECT_EXTENSION:
 				{
 					return &Extension_Drop;
-				}
-
-				case OBJECT_FDW:
-				{
-					return &Fdw_Drop;
 				}
 
 				case OBJECT_FUNCTION:
