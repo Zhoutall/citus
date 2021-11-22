@@ -25,12 +25,12 @@ List *
 PreprocessCreateFdwStmt(Node *node, const char *queryString,
 						ProcessUtilityContext processUtilityContext)
 {
-	EnsureCoordinator();
-
 	if (!ShouldPropagate())
 	{
 		return NIL;
 	}
+
+	EnsureCoordinator();
 
 	/* to prevent recursion with mx we disable ddl propagation */
 	List *commands = list_make3(DISABLE_DDL_PROPAGATION,
@@ -73,12 +73,12 @@ PreprocessDropFdwStmt(Node *node, const char *queryString,
 		return NIL;
 	}
 
-	EnsureCoordinator();
-
 	if (!ShouldPropagate())
 	{
 		return NIL;
 	}
+
+	EnsureCoordinator();
 
 	/* unmark each distributed fdw */
 	ObjectAddress *address = NULL;
