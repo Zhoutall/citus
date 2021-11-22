@@ -229,7 +229,7 @@ extern bool RelationInvolvedInAnyNonInheritedForeignKeys(Oid relationId);
 extern List * PreprocessCreateFdwStmt(Node *node, const char *queryString,
 									  ProcessUtilityContext processUtilityContext);
 extern List * PreprocessDropFdwStmt(Node *node, const char *queryString,
-                      				ProcessUtilityContext processUtilityContext);
+									ProcessUtilityContext processUtilityContext);
 extern List * PostprocessCreateFdwStmt(Node *node, const char *queryString);
 extern ObjectAddress CreateFdwStmtObjectAddress(Node *node, bool missing_ok);
 

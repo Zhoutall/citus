@@ -27,6 +27,11 @@ PreprocessCreateFdwStmt(Node *node, const char *queryString,
 {
 	EnsureCoordinator();
 
+	if (!ShouldPropagate())
+	{
+		return NIL;
+	}
+
 	/* to prevent recursion with mx we disable ddl propagation */
 	List *commands = list_make3(DISABLE_DDL_PROPAGATION,
 								(void *) queryString,
@@ -38,7 +43,7 @@ PreprocessCreateFdwStmt(Node *node, const char *queryString,
 
 List *
 PreprocessDropFdwStmt(Node *node, const char *queryString,
-                      ProcessUtilityContext processUtilityContext)
+					  ProcessUtilityContext processUtilityContext)
 {
 	DropStmt *stmt = castNode(DropStmt, node);
 	Assert(stmt->removeType == OBJECT_FDW);
@@ -69,6 +74,11 @@ PreprocessDropFdwStmt(Node *node, const char *queryString,
 	}
 
 	EnsureCoordinator();
+
+	if (!ShouldPropagate())
+	{
+		return NIL;
+	}
 
 	/* unmark each distributed fdw */
 	ObjectAddress *address = NULL;

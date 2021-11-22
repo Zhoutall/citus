@@ -28,6 +28,11 @@ PreprocessCreateForeignServerStmt(Node *node, const char *queryString,
 {
 	EnsureCoordinator();
 
+	if (!ShouldPropagate())
+	{
+		return NIL;
+	}
+
 	/* to prevent recursion with mx we disable ddl propagation */
 	List *commands = list_make3(DISABLE_DDL_PROPAGATION,
 								(void *) queryString,
@@ -70,6 +75,11 @@ PreprocessDropForeignServerStmt(Node *node, const char *queryString,
 	}
 
 	EnsureCoordinator();
+
+	if (!ShouldPropagate())
+	{
+		return NIL;
+	}
 
 	/* unmark each distributed server */
 	ObjectAddress *address = NULL;
