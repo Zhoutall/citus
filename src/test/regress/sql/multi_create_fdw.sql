@@ -12,5 +12,7 @@ RETURNS fdw_handler
 AS 'citus'
 LANGUAGE C STRICT;
 
+set citus.enable_ddl_propagation to off;
 CREATE FOREIGN DATA WRAPPER fake_fdw HANDLER fake_fdw_handler;
 CREATE SERVER fake_fdw_server FOREIGN DATA WRAPPER fake_fdw;
+set citus.enable_ddl_propagation to on;
