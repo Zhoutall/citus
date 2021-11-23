@@ -16,27 +16,28 @@ CREATE EXTENSION postgres_fdw;
 CREATE SERVER foreign_server
         FOREIGN DATA WRAPPER postgres_fdw
         OPTIONS (host 'localhost', port :'master_port', dbname 'regression');
-SELECT * FROM pg_foreign_server WHERE srvname = 'foreign_server' ORDER BY srvname;
-  oid  |    srvname     | srvowner | srvfdw | srvtype | srvversion | srvacl |                  srvoptions
+SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server';
+ ?column?
 ---------------------------------------------------------------------
- 17026 | foreign_server |       10 |  17015 |         |            |        | {host=localhost,port=57636,dbname=regression}
+ t
 (1 row)
 
 \c - - - :worker_1_port
 -- verify that the server is created on the worker
-SELECT * FROM pg_foreign_server WHERE srvname = 'foreign_server' ORDER BY srvname;
-  oid  |    srvname     | srvowner | srvfdw | srvtype | srvversion | srvacl |                  srvoptions
+SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server';
+ ?column?
 ---------------------------------------------------------------------
- 17259 | foreign_server |       10 |  17255 |         |            |        | {host=localhost,port=57636,dbname=regression}
+ t
 (1 row)
 
 \c - - - :master_port
 DROP SERVER foreign_server;
 \c - - - :worker_1_port
 -- verify that the server is dropped on the worker
-SELECT * FROM pg_foreign_server WHERE srvname = 'foreign_server' ORDER BY srvname;
- oid | srvname | srvowner | srvfdw | srvtype | srvversion | srvacl | srvoptions
+SELECT COUNT(*)=0 FROM pg_foreign_server WHERE srvname = 'foreign_server';
+ ?column?
 ---------------------------------------------------------------------
-(0 rows)
+ t
+(1 row)
 
 \c - - - :master_port
