@@ -108,6 +108,40 @@ PreprocessRenameForeignServerStmt(Node *node, const char *queryString,
 
 
 List *
+PreprocessAlterForeignServerOwnerStmt(Node *node, const char *queryString,
+									  ProcessUtilityContext processUtilityContext)
+{
+	if (!ShouldPropagate())
+	{
+		return NIL;
+	}
+
+	AlterOwnerStmt *stmt = castNode(AlterOwnerStmt, node);
+	Assert(stmt->objectType == OBJECT_FOREIGN_SERVER);
+
+	char *serverName = strVal(stmt->object);
+	ForeignServer *server = GetForeignServerByName(serverName, false);
+	ObjectAddress address = { 0 };
+	ObjectAddressSet(address, ForeignServerRelationId, server->serverid);
+
+	/* filter distributed servers */
+	if (!IsObjectDistributed(&address))
+	{
+		return NIL;
+	}
+
+	EnsureCoordinator();
+
+	/* to prevent recursion with mx we disable ddl propagation */
+	List *commands = list_make3(DISABLE_DDL_PROPAGATION,
+								(void *) queryString,
+								ENABLE_DDL_PROPAGATION);
+
+	return NodeDDLTaskList(NON_COORDINATOR_NODES, commands);
+}
+
+
+List *
 PreprocessDropForeignServerStmt(Node *node, const char *queryString,
 								ProcessUtilityContext processUtilityContext)
 {

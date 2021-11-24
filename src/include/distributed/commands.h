@@ -233,6 +233,8 @@ extern List * PreprocessAlterForeignServerStmt(Node *node, const char *queryStri
 											   ProcessUtilityContext processUtilityContext);
 extern List * PreprocessRenameForeignServerStmt(Node *node, const char *queryString,
 												ProcessUtilityContext processUtilityContext);
+extern List * PreprocessAlterForeignServerOwnerStmt(Node *node, const char *queryString,
+													ProcessUtilityContext processUtilityContext);
 extern List * PreprocessDropForeignServerStmt(Node *node, const char *queryString,
 											  ProcessUtilityContext
 											  processUtilityContext);

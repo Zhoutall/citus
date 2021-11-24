@@ -325,6 +325,13 @@ static DistributeObjectOps ForeignServer_Rename = {
 	.postprocess = NULL,
 	.address = NULL,
 };
+static DistributeObjectOps ForeignServer_AlterOwner = {
+	.deparse = NULL,
+	.qualify = NULL,
+	.preprocess = PreprocessAlterForeignServerOwnerStmt,
+	.postprocess = NULL,
+	.address = NULL,
+};
 static DistributeObjectOps ForeignTable_AlterTable = {
 	.deparse = NULL,
 	.qualify = NULL,
@@ -820,6 +827,11 @@ GetDistributeObjectOps(Node *node)
 				case OBJECT_DATABASE:
 				{
 					return &Database_AlterOwner;
+				}
+
+				case OBJECT_FOREIGN_SERVER:
+				{
+					return &ForeignServer_AlterOwner;
 				}
 
 				case OBJECT_FUNCTION:
