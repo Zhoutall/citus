@@ -43,6 +43,71 @@ PreprocessCreateForeignServerStmt(Node *node, const char *queryString,
 
 
 List *
+PreprocessAlterForeignServerStmt(Node *node, const char *queryString,
+								 ProcessUtilityContext processUtilityContext)
+{
+	if (!ShouldPropagate())
+	{
+		return NIL;
+	}
+
+	AlterForeignServerStmt *stmt = castNode(AlterForeignServerStmt, node);
+	ForeignServer *server = GetForeignServerByName(stmt->servername, false);
+	ObjectAddress address = { 0 };
+	ObjectAddressSet(address, ForeignServerRelationId, server->serverid);
+
+	/* filter distributed servers */
+	if (!IsObjectDistributed(&address))
+	{
+		return NIL;
+	}
+
+	EnsureCoordinator();
+
+	/* to prevent recursion with mx we disable ddl propagation */
+	List *commands = list_make3(DISABLE_DDL_PROPAGATION,
+								(void *) queryString,
+								ENABLE_DDL_PROPAGATION);
+
+	return NodeDDLTaskList(NON_COORDINATOR_NODES, commands);
+}
+
+
+List *
+PreprocessRenameForeignServerStmt(Node *node, const char *queryString,
+								  ProcessUtilityContext processUtilityContext)
+{
+	if (!ShouldPropagate())
+	{
+		return NIL;
+	}
+
+	RenameStmt *stmt = castNode(RenameStmt, node);
+	Assert(stmt->renameType == OBJECT_FOREIGN_SERVER);
+
+	char *serverName = strVal(stmt->object);
+	ForeignServer *server = GetForeignServerByName(serverName, false);
+	ObjectAddress address = { 0 };
+	ObjectAddressSet(address, ForeignServerRelationId, server->serverid);
+
+	/* filter distributed servers */
+	if (!IsObjectDistributed(&address))
+	{
+		return NIL;
+	}
+
+	EnsureCoordinator();
+
+	/* to prevent recursion with mx we disable ddl propagation */
+	List *commands = list_make3(DISABLE_DDL_PROPAGATION,
+								(void *) queryString,
+								ENABLE_DDL_PROPAGATION);
+
+	return NodeDDLTaskList(NON_COORDINATOR_NODES, commands);
+}
+
+
+List *
 PreprocessDropForeignServerStmt(Node *node, const char *queryString,
 								ProcessUtilityContext processUtilityContext)
 {

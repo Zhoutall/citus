@@ -89,6 +89,13 @@ static DistributeObjectOps Any_AlterExtensionContents = {
 	.address = NULL,
 	.markDistributed = false,
 };
+static DistributeObjectOps Any_AlterForeignServer = {
+	.deparse = NULL,
+	.qualify = NULL,
+	.preprocess = PreprocessAlterForeignServerStmt,
+	.postprocess = NULL,
+	.address = NULL,
+};
 static DistributeObjectOps Any_AlterFunction = {
 	.deparse = DeparseAlterFunctionStmt,
 	.qualify = QualifyAlterFunctionStmt,
@@ -308,6 +315,13 @@ static DistributeObjectOps ForeignServer_Drop = {
 	.deparse = DeparseDropForeignServerStmt,
 	.qualify = NULL,
 	.preprocess = PreprocessDropForeignServerStmt,
+	.postprocess = NULL,
+	.address = NULL,
+};
+static DistributeObjectOps ForeignServer_Rename = {
+	.deparse = NULL,
+	.qualify = NULL,
+	.preprocess = PreprocessRenameForeignServerStmt,
 	.postprocess = NULL,
 	.address = NULL,
 };
@@ -687,6 +701,11 @@ GetDistributeObjectOps(Node *node)
 		case T_AlterFunctionStmt:
 		{
 			return &Any_AlterFunction;
+		}
+
+		case T_AlterForeignServerStmt:
+		{
+			return &Any_AlterForeignServer;
 		}
 
 		case T_AlterObjectDependsStmt:
@@ -1103,6 +1122,11 @@ GetDistributeObjectOps(Node *node)
 				case OBJECT_COLLATION:
 				{
 					return &Collation_Rename;
+				}
+
+				case OBJECT_FOREIGN_SERVER:
+				{
+					return &ForeignServer_Rename;
 				}
 
 				case OBJECT_FUNCTION:

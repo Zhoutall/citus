@@ -28,9 +28,14 @@ SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server';
 -- verify that the server is created on the worker
 SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server';
 \c - - - :master_port
+ALTER SERVER foreign_server RENAME TO foreign_server_1;
+\c - - - :worker_1_port
+-- verify that the server is renamed on the worker
+SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
+\c - - - :master_port
 
-DROP SERVER foreign_server;
+DROP SERVER foreign_server_1;
 \c - - - :worker_1_port
 -- verify that the server is dropped on the worker
-SELECT COUNT(*)=0 FROM pg_foreign_server WHERE srvname = 'foreign_server';
+SELECT COUNT(*)=0 FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
 \c - - - :master_port
