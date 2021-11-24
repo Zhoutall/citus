@@ -17,16 +17,16 @@ CREATE SERVER foreign_server
         FOREIGN DATA WRAPPER postgres_fdw
         OPTIONS (host 'localhost', port :'master_port', dbname 'regression');
 SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server';
- ?column? 
-----------
+ ?column?
+---------------------------------------------------------------------
  t
 (1 row)
 
 \c - - - :worker_1_port
 -- verify that the server is created on the worker
 SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server';
- ?column? 
-----------
+ ?column?
+---------------------------------------------------------------------
  t
 (1 row)
 
@@ -35,8 +35,8 @@ ALTER SERVER foreign_server RENAME TO foreign_server_1;
 \c - - - :worker_1_port
 -- verify that the server is renamed on the worker
 SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
- ?column? 
-----------
+ ?column?
+---------------------------------------------------------------------
  t
 (1 row)
 
@@ -45,8 +45,8 @@ DROP SERVER foreign_server_1;
 \c - - - :worker_1_port
 -- verify that the server is dropped on the worker
 SELECT COUNT(*)=0 FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
- ?column? 
-----------
+ ?column?
+---------------------------------------------------------------------
  t
 (1 row)
 
