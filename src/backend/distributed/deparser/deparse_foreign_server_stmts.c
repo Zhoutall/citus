@@ -9,6 +9,7 @@
  */
 #include "postgres.h"
 
+#include "commands/defrem.h"
 #include "distributed/citus_ruleutils.h"
 #include "distributed/deparser.h"
 #include "distributed/listutils.h"
@@ -17,9 +18,26 @@
 #include "nodes/nodes.h"
 #include "utils/builtins.h"
 
+static void AppendCreateForeignServerStmt(StringInfo buf, CreateForeignServerStmt *stmt);
+static void AppendCreateForeignServerOptions(StringInfo buf,
+											 CreateForeignServerStmt *stmt);
 static void AppendDropForeignServerStmt(StringInfo buf, DropStmt *stmt);
 static void AppendServerNames(StringInfo buf, DropStmt *stmt);
 static void AppendBehavior(StringInfo buf, DropStmt *stmt);
+
+char *
+DeparseCreateForeignServerStmt(Node *node)
+{
+	CreateForeignServerStmt *stmt = castNode(CreateForeignServerStmt, node);
+
+	StringInfoData str;
+	initStringInfo(&str);
+
+	AppendCreateForeignServerStmt(&str, stmt);
+
+	return str.data;
+}
+
 
 char *
 DeparseDropForeignServerStmt(Node *node)
@@ -34,6 +52,60 @@ DeparseDropForeignServerStmt(Node *node)
 	AppendDropForeignServerStmt(&str, stmt);
 
 	return str.data;
+}
+
+
+static void
+AppendCreateForeignServerStmt(StringInfo buf, CreateForeignServerStmt *stmt)
+{
+	appendStringInfoString(buf, "CREATE SERVER ");
+
+	if (stmt->if_not_exists)
+	{
+		appendStringInfoString(buf, "IF NOT EXISTS ");
+	}
+
+	appendStringInfo(buf, "%s ", stmt->servername);
+
+	if (stmt->servertype)
+	{
+		appendStringInfo(buf, "TYPE %s ", stmt->servertype);
+	}
+
+	if (stmt->version)
+	{
+		appendStringInfo(buf, "VERSION %s ", stmt->version);
+	}
+
+	appendStringInfo(buf, "FOREIGN DATA WRAPPER %s ", stmt->fdwname);
+
+	AppendCreateForeignServerOptions(buf, stmt);
+}
+
+
+static void
+AppendCreateForeignServerOptions(StringInfo buf, CreateForeignServerStmt *stmt)
+{
+	if (list_length(stmt->options) <= 0)
+	{
+		return;
+	}
+
+	appendStringInfoString(buf, "OPTIONS (");
+
+	DefElem *def = NULL;
+	foreach_ptr(def, stmt->options)
+	{
+		const char *value = defGetString(def);
+		appendStringInfo(buf, "%s \'%s\'", def->defname, value);
+
+		if (def != llast(stmt->options))
+		{
+			appendStringInfoString(buf, ", ");
+		}
+	}
+
+	appendStringInfoString(buf, ")");
 }
 
 

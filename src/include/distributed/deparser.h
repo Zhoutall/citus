@@ -47,6 +47,7 @@ extern void QualifyAlterCollationSchemaStmt(Node *stmt);
 extern void QualifyAlterCollationOwnerStmt(Node *stmt);
 
 /* forward declarations for deparse_foreign_server_stmts.c */
+extern char * DeparseCreateForeignServerStmt(Node *node);
 extern char * DeparseDropForeignServerStmt(Node *node);
 
 /* forward declarations for deparse_table_stmts.c */

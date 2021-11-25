@@ -185,7 +185,7 @@ static DistributeObjectOps Any_CreatePolicy = {
 	.markDistributed = false,
 };
 static DistributeObjectOps Any_CreateForeignServer = {
-	.deparse = NULL,
+	.deparse = DeparseCreateForeignServerStmt,
 	.qualify = NULL,
 	.preprocess = PreprocessCreateForeignServerStmt,
 	.postprocess = PostprocessCreateForeignServerStmt,
