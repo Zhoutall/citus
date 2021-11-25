@@ -21,6 +21,7 @@
 static void AppendCreateForeignServerStmt(StringInfo buf, CreateForeignServerStmt *stmt);
 static void AppendCreateForeignServerOptions(StringInfo buf,
 											 CreateForeignServerStmt *stmt);
+static void AppendAlterForeignServerRenameStmt(StringInfo buf, RenameStmt *stmt);
 static void AppendAlterForeignServerOwnerStmt(StringInfo buf, AlterOwnerStmt *stmt);
 static void AppendDropForeignServerStmt(StringInfo buf, DropStmt *stmt);
 static void AppendServerNames(StringInfo buf, DropStmt *stmt);
@@ -35,6 +36,22 @@ DeparseCreateForeignServerStmt(Node *node)
 	initStringInfo(&str);
 
 	AppendCreateForeignServerStmt(&str, stmt);
+
+	return str.data;
+}
+
+
+char *
+DeparseAlterForeignServerRenameStmt(Node *node)
+{
+	RenameStmt *stmt = castNode(RenameStmt, node);
+
+	Assert(stmt->renameType == OBJECT_FOREIGN_SERVER);
+
+	StringInfoData str;
+	initStringInfo(&str);
+
+	AppendAlterForeignServerRenameStmt(&str, stmt);
 
 	return str.data;
 }
@@ -123,6 +140,14 @@ AppendCreateForeignServerOptions(StringInfo buf, CreateForeignServerStmt *stmt)
 	}
 
 	appendStringInfoString(buf, ")");
+}
+
+
+static void
+AppendAlterForeignServerRenameStmt(StringInfo buf, RenameStmt *stmt)
+{
+	appendStringInfo(buf, "ALTER SERVER %s RENAME TO %s", stmt->relation->relname,
+					 stmt->newname);
 }
 
 
