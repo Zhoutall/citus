@@ -326,7 +326,7 @@ static DistributeObjectOps ForeignServer_Rename = {
 	.address = NULL,
 };
 static DistributeObjectOps ForeignServer_AlterOwner = {
-	.deparse = NULL,
+	.deparse = DeparseAlterForeignServerOwnerStmt,
 	.qualify = NULL,
 	.preprocess = PreprocessAlterForeignServerOwnerStmt,
 	.postprocess = NULL,

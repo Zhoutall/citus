@@ -21,6 +21,7 @@
 static void AppendCreateForeignServerStmt(StringInfo buf, CreateForeignServerStmt *stmt);
 static void AppendCreateForeignServerOptions(StringInfo buf,
 											 CreateForeignServerStmt *stmt);
+static void AppendAlterForeignServerOwnerStmt(StringInfo buf, AlterOwnerStmt *stmt);
 static void AppendDropForeignServerStmt(StringInfo buf, DropStmt *stmt);
 static void AppendServerNames(StringInfo buf, DropStmt *stmt);
 static void AppendBehavior(StringInfo buf, DropStmt *stmt);
@@ -34,6 +35,22 @@ DeparseCreateForeignServerStmt(Node *node)
 	initStringInfo(&str);
 
 	AppendCreateForeignServerStmt(&str, stmt);
+
+	return str.data;
+}
+
+
+char *
+DeparseAlterForeignServerOwnerStmt(Node *node)
+{
+	AlterOwnerStmt *stmt = castNode(AlterOwnerStmt, node);
+
+	Assert(stmt->objectType == OBJECT_FOREIGN_SERVER);
+
+	StringInfoData str;
+	initStringInfo(&str);
+
+	AppendAlterForeignServerOwnerStmt(&str, stmt);
 
 	return str.data;
 }
@@ -106,6 +123,15 @@ AppendCreateForeignServerOptions(StringInfo buf, CreateForeignServerStmt *stmt)
 	}
 
 	appendStringInfoString(buf, ")");
+}
+
+
+static void
+AppendAlterForeignServerOwnerStmt(StringInfo buf, AlterOwnerStmt *stmt)
+{
+	appendStringInfo(buf, "ALTER SERVER %s OWNER TO ", stmt->relation->relname);
+
+	appendStringInfo(buf, "%s", RoleSpecString(stmt->newowner, true));
 }
 
 

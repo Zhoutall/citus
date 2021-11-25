@@ -134,9 +134,11 @@ PreprocessAlterForeignServerOwnerStmt(Node *node, const char *queryString,
 
 	EnsureCoordinator();
 
+	char *sql = DeparseTreeNode(node);
+
 	/* to prevent recursion with mx we disable ddl propagation */
 	List *commands = list_make3(DISABLE_DDL_PROPAGATION,
-								(void *) queryString,
+								(void *) sql,
 								ENABLE_DDL_PROPAGATION);
 
 	return NodeDDLTaskList(NON_COORDINATOR_NODES, commands);
