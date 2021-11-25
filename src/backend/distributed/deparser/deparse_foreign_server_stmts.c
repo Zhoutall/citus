@@ -146,15 +146,15 @@ AppendCreateForeignServerOptions(StringInfo buf, CreateForeignServerStmt *stmt)
 static void
 AppendAlterForeignServerRenameStmt(StringInfo buf, RenameStmt *stmt)
 {
-	appendStringInfo(buf, "ALTER SERVER %s RENAME TO %s", stmt->relation->relname,
-					 stmt->newname);
+	appendStringInfo(buf, "ALTER SERVER %s RENAME TO %s",
+					 strVal(stmt->object), stmt->newname);
 }
 
 
 static void
 AppendAlterForeignServerOwnerStmt(StringInfo buf, AlterOwnerStmt *stmt)
 {
-	appendStringInfo(buf, "ALTER SERVER %s OWNER TO ", stmt->relation->relname);
+	appendStringInfo(buf, "ALTER SERVER %s OWNER TO ", strVal(stmt->object));
 
 	appendStringInfo(buf, "%s", RoleSpecString(stmt->newowner, true));
 }
