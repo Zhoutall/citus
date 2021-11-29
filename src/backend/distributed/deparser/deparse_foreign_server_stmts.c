@@ -284,11 +284,20 @@ GetDefElemActionString(DefElemAction action)
 	switch (action)
 	{
 		case DEFELEM_ADD:
+		{
 			return "ADD";
+		}
+
 		case DEFELEM_SET:
+		{
 			return "SET";
+		}
+
 		case DEFELEM_DROP:
+		{
 			return "DROP";
+		}
+
 		default:
 			return "";
 	}
