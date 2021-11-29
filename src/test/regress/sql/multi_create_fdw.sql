@@ -21,17 +21,21 @@ set citus.enable_ddl_propagation to on;
 CREATE EXTENSION postgres_fdw;
 CREATE SERVER foreign_server
         FOREIGN DATA WRAPPER postgres_fdw
-        OPTIONS (host 'localhost', port :'master_port', dbname 'regression');
+        OPTIONS (host 'testhost', port '5432', dbname 'testdb');
 
 SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server';
 \c - - - :worker_1_port
 -- verify that the server is created on the worker
 SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server';
 \c - - - :master_port
+ALTER SERVER foreign_server OPTIONS (ADD passfile 'to_be_dropped');
+ALTER SERVER foreign_server OPTIONS (SET host 'localhost');
+ALTER SERVER foreign_server OPTIONS (DROP port, DROP dbname);
+ALTER SERVER foreign_server OPTIONS (ADD port :'master_port', dbname 'regression', DROP passfile);
 ALTER SERVER foreign_server RENAME TO foreign_server_1;
 \c - - - :worker_1_port
 -- verify that the server is renamed on the worker
-SELECT COUNT(*)=1 FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
+SELECT srvoptions FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
 \c - - - :master_port
 
 DROP SERVER foreign_server_1;

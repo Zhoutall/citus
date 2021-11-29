@@ -21,11 +21,14 @@
 static void AppendCreateForeignServerStmt(StringInfo buf, CreateForeignServerStmt *stmt);
 static void AppendCreateForeignServerOptions(StringInfo buf,
 											 CreateForeignServerStmt *stmt);
+static void AppendAlterForeignServerStmt(StringInfo buf, AlterForeignServerStmt *stmt);
+static void AppendAlterForeignServerOptions(StringInfo buf, AlterForeignServerStmt *stmt);
 static void AppendAlterForeignServerRenameStmt(StringInfo buf, RenameStmt *stmt);
 static void AppendAlterForeignServerOwnerStmt(StringInfo buf, AlterOwnerStmt *stmt);
 static void AppendDropForeignServerStmt(StringInfo buf, DropStmt *stmt);
 static void AppendServerNames(StringInfo buf, DropStmt *stmt);
 static void AppendBehavior(StringInfo buf, DropStmt *stmt);
+static char * GetDefElemActionString(DefElemAction action);
 
 char *
 DeparseCreateForeignServerStmt(Node *node)
@@ -36,6 +39,20 @@ DeparseCreateForeignServerStmt(Node *node)
 	initStringInfo(&str);
 
 	AppendCreateForeignServerStmt(&str, stmt);
+
+	return str.data;
+}
+
+
+char *
+DeparseAlterForeignServerStmt(Node *node)
+{
+	AlterForeignServerStmt *stmt = castNode(AlterForeignServerStmt, node);
+
+	StringInfoData str;
+	initStringInfo(&str);
+
+	AppendAlterForeignServerStmt(&str, stmt);
 
 	return str.data;
 }
@@ -144,6 +161,60 @@ AppendCreateForeignServerOptions(StringInfo buf, CreateForeignServerStmt *stmt)
 
 
 static void
+AppendAlterForeignServerStmt(StringInfo buf, AlterForeignServerStmt *stmt)
+{
+	appendStringInfo(buf, "ALTER SERVER %s ", stmt->servername);
+
+	if (stmt->has_version)
+	{
+		appendStringInfo(buf, "VERSION %s ", stmt->version);
+	}
+
+	AppendAlterForeignServerOptions(buf, stmt);
+}
+
+
+static void
+AppendAlterForeignServerOptions(StringInfo buf, AlterForeignServerStmt *stmt)
+{
+	if (list_length(stmt->options) <= 0)
+	{
+		return;
+	}
+
+	appendStringInfoString(buf, "OPTIONS (");
+
+	DefElemAction action = DEFELEM_UNSPEC;
+	DefElem *def = NULL;
+	foreach_ptr(def, stmt->options)
+	{
+		if (def->defaction != DEFELEM_UNSPEC)
+		{
+			action = def->defaction;
+			char *actionString = GetDefElemActionString(action);
+			appendStringInfo(buf, "%s ", actionString);
+		}
+
+		appendStringInfo(buf, "%s", def->defname);
+
+		if (action != DEFELEM_DROP)
+		{
+			const char *value = defGetString(def);
+
+			appendStringInfo(buf, " \'%s\'", value);
+		}
+
+		if (def != llast(stmt->options))
+		{
+			appendStringInfoString(buf, ", ");
+		}
+	}
+
+	appendStringInfoString(buf, ")");
+}
+
+
+static void
 AppendAlterForeignServerRenameStmt(StringInfo buf, RenameStmt *stmt)
 {
 	appendStringInfo(buf, "ALTER SERVER %s RENAME TO %s",
@@ -203,5 +274,22 @@ AppendBehavior(StringInfo buf, DropStmt *stmt)
 	else if (stmt->behavior == DROP_RESTRICT)
 	{
 		appendStringInfoString(buf, " RESTRICT");
+	}
+}
+
+
+static char *
+GetDefElemActionString(DefElemAction action)
+{
+	switch (action)
+	{
+		case DEFELEM_ADD:
+			return "ADD";
+		case DEFELEM_SET:
+			return "SET";
+		case DEFELEM_DROP:
+			return "DROP";
+		default:
+			return "";
 	}
 }
