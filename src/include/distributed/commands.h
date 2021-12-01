@@ -242,6 +242,7 @@ extern List * PreprocessDropForeignServerStmt(Node *node, const char *queryStrin
 											  processUtilityContext);
 extern List * PostprocessCreateForeignServerStmt(Node *node, const char *queryString);
 extern ObjectAddress CreateForeignServerStmtObjectAddress(Node *node, bool missing_ok);
+extern List * GetForeignServerCreateDDLCommand(Oid serverId);
 
 /* function.c - forward declarations */
 extern List * PreprocessCreateFunctionStmt(Node *stmt, const char *queryString,

@@ -21,6 +21,8 @@
 #include "foreign/foreign.h"
 #include "nodes/primnodes.h"
 
+static Node * RecreateForeignServerStmt(Oid serverId);
+
 
 List *
 PreprocessCreateForeignServerStmt(Node *node, const char *queryString,
@@ -240,4 +242,51 @@ CreateForeignServerStmtObjectAddress(Node *node, bool missing_ok)
 	ObjectAddressSet(address, ForeignServerRelationId, serverOid);
 
 	return address;
+}
+
+
+/*
+ * GetForeignServerCreateDDLCommand returns a list that includes the CREATE SERVER
+ * command that would recreate the given server on a new node.
+ */
+List *
+GetForeignServerCreateDDLCommand(Oid serverId)
+{
+	/* generate a statement for creation of the server in "if not exists" construct */
+	Node *stmt = RecreateForeignServerStmt(serverId);
+
+	/* capture ddl command for the create statement */
+	const char *ddlCommand = DeparseTreeNode(stmt);
+
+	List *ddlCommands = list_make1((void *) ddlCommand);
+
+	return ddlCommands;
+}
+
+
+/*
+ * RecreateForeignServerStmt returns a parsetree for a CREATE SERVER statement
+ * that would recreate the given server on a new node.
+ */
+static Node *
+RecreateForeignServerStmt(Oid serverId)
+{
+	ForeignServer *server = GetForeignServer(serverId);
+
+	CreateForeignServerStmt *createStmt = makeNode(CreateForeignServerStmt);
+
+	/* set server name and if_not_exists fields */
+	createStmt->servername = server->servername;
+	createStmt->if_not_exists = true;
+
+	/* set foreign data wrapper */
+	ForeignDataWrapper *fdw = GetForeignDataWrapper(server->fdwid);
+	createStmt->fdwname = fdw->fdwname;
+
+	/* set all fields using the existing server */
+	createStmt->options = server->options;
+	createStmt->servertype = server->servertype;
+	createStmt->version = server->serverversion;
+
+	return (Node *) createStmt;
 }
