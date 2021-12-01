@@ -50,18 +50,12 @@ List *
 PreprocessAlterForeignServerStmt(Node *node, const char *queryString,
 								 ProcessUtilityContext processUtilityContext)
 {
-	if (!ShouldPropagate())
-	{
-		return NIL;
-	}
-
 	AlterForeignServerStmt *stmt = castNode(AlterForeignServerStmt, node);
 	ForeignServer *server = GetForeignServerByName(stmt->servername, false);
 	ObjectAddress address = { 0 };
 	ObjectAddressSet(address, ForeignServerRelationId, server->serverid);
 
-	/* filter distributed servers */
-	if (!IsObjectDistributed(&address))
+	if (!ShouldPropagateObject(&address))
 	{
 		return NIL;
 	}
@@ -83,11 +77,6 @@ List *
 PreprocessRenameForeignServerStmt(Node *node, const char *queryString,
 								  ProcessUtilityContext processUtilityContext)
 {
-	if (!ShouldPropagate())
-	{
-		return NIL;
-	}
-
 	RenameStmt *stmt = castNode(RenameStmt, node);
 	Assert(stmt->renameType == OBJECT_FOREIGN_SERVER);
 
@@ -97,7 +86,7 @@ PreprocessRenameForeignServerStmt(Node *node, const char *queryString,
 	ObjectAddressSet(address, ForeignServerRelationId, server->serverid);
 
 	/* filter distributed servers */
-	if (!IsObjectDistributed(&address))
+	if (!ShouldPropagateObject(&address))
 	{
 		return NIL;
 	}
@@ -119,11 +108,6 @@ List *
 PreprocessAlterForeignServerOwnerStmt(Node *node, const char *queryString,
 									  ProcessUtilityContext processUtilityContext)
 {
-	if (!ShouldPropagate())
-	{
-		return NIL;
-	}
-
 	AlterOwnerStmt *stmt = castNode(AlterOwnerStmt, node);
 	Assert(stmt->objectType == OBJECT_FOREIGN_SERVER);
 
@@ -133,7 +117,7 @@ PreprocessAlterForeignServerOwnerStmt(Node *node, const char *queryString,
 	ObjectAddressSet(address, ForeignServerRelationId, server->serverid);
 
 	/* filter distributed servers */
-	if (!IsObjectDistributed(&address))
+	if (!ShouldPropagateObject(&address))
 	{
 		return NIL;
 	}
