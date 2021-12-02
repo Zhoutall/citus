@@ -33,9 +33,15 @@ ALTER SERVER foreign_server OPTIONS (SET host 'localhost');
 ALTER SERVER foreign_server OPTIONS (DROP port, DROP dbname);
 ALTER SERVER foreign_server OPTIONS (ADD port :'master_port', dbname 'regression', DROP passfile);
 ALTER SERVER foreign_server RENAME TO foreign_server_1;
+
+-- test alter owner
+SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
+ALTER SERVER foreign_server_1 OWNER TO pg_monitor;
 \c - - - :worker_1_port
 -- verify that the server is renamed on the worker
 SELECT srvoptions FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
+-- verify the owner is changed
+SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
 \c - - - :master_port
 
 DROP SERVER foreign_server_1;
