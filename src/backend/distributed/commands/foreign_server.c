@@ -24,6 +24,10 @@
 static Node * RecreateForeignServerStmt(Oid serverId);
 
 
+/*
+ * PreprocessCreateForeignServerStmt is called during the planning phase for
+ * CREATE SERVER.
+ */
 List *
 PreprocessCreateForeignServerStmt(Node *node, const char *queryString,
 								  ProcessUtilityContext processUtilityContext)
@@ -46,6 +50,10 @@ PreprocessCreateForeignServerStmt(Node *node, const char *queryString,
 }
 
 
+/*
+ * PreprocessAlterForeignServerStmt is called during the planning phase for
+ * ALTER SERVER .. OPTIONS ..
+ */
 List *
 PreprocessAlterForeignServerStmt(Node *node, const char *queryString,
 								 ProcessUtilityContext processUtilityContext)
@@ -73,6 +81,10 @@ PreprocessAlterForeignServerStmt(Node *node, const char *queryString,
 }
 
 
+/*
+ * PreprocessRenameForeignServerStmt is called during the planning phase for
+ * ALTER SERVER RENAME.
+ */
 List *
 PreprocessRenameForeignServerStmt(Node *node, const char *queryString,
 								  ProcessUtilityContext processUtilityContext)
@@ -104,6 +116,10 @@ PreprocessRenameForeignServerStmt(Node *node, const char *queryString,
 }
 
 
+/*
+ * PreprocessAlterForeignServerOwnerStmt is called during the planning phase for
+ * ALTER SERVER .. OWNER TO.
+ */
 List *
 PreprocessAlterForeignServerOwnerStmt(Node *node, const char *queryString,
 									  ProcessUtilityContext processUtilityContext)
@@ -135,6 +151,10 @@ PreprocessAlterForeignServerOwnerStmt(Node *node, const char *queryString,
 }
 
 
+/*
+ * PreprocessDropForeignServerStmt is called during the planning phase for
+ * DROP SERVER.
+ */
 List *
 PreprocessDropForeignServerStmt(Node *node, const char *queryString,
 								ProcessUtilityContext processUtilityContext)
@@ -204,10 +224,15 @@ PreprocessDropForeignServerStmt(Node *node, const char *queryString,
 }
 
 
+/*
+ * PostprocessCreateForeignServerStmt is called after a CREATE SERVER command has
+ * been executed by standard process utility.
+ */
 List *
 PostprocessCreateForeignServerStmt(Node *node, const char *queryString)
 {
-	ObjectAddress typeAddress = GetObjectAddressFromParseTree(node, false);
+	bool missingOk = false;
+	ObjectAddress typeAddress = GetObjectAddressFromParseTree(node, missingOk);
 	EnsureDependenciesExistOnAllNodes(&typeAddress);
 
 	MarkObjectDistributed(&typeAddress);
@@ -216,11 +241,19 @@ PostprocessCreateForeignServerStmt(Node *node, const char *queryString)
 }
 
 
+/*
+ * CreateForeignServerStmtObjectAddress finds the ObjectAddress for the server
+ * that is created by given CreateForeignServerStmt. If missingOk is false and if
+ * the statistics does not exist, then it errors out.
+ *
+ * Never returns NULL, but the objid in the address can be invalid if missingOk
+ * was set to true.
+ */
 ObjectAddress
 CreateForeignServerStmtObjectAddress(Node *node, bool missing_ok)
 {
 	CreateForeignServerStmt *stmt = castNode(CreateForeignServerStmt, node);
-	ForeignServer *server = GetForeignServerByName(stmt->servername, false);
+	ForeignServer *server = GetForeignServerByName(stmt->servername, missing_ok);
 	Oid serverOid = server->serverid;
 	ObjectAddress address = { 0 };
 	ObjectAddressSet(address, ForeignServerRelationId, serverOid);
