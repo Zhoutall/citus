@@ -44,7 +44,7 @@ SELECT srvoptions FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
 SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
 \c - - - :master_port
 
-DROP SERVER foreign_server_1;
+DROP SERVER IF EXISTS foreign_server_1 CASCADE;
 \c - - - :worker_1_port
 -- verify that the server is dropped on the worker
 SELECT COUNT(*)=0 FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
