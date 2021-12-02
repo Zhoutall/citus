@@ -232,6 +232,7 @@ CitusExecutorRun(QueryDesc *queryDesc,
 			 * transactions.
 			 */
 			CitusTableCacheFlushInvalidatedEntries();
+			ResetAllowedShardKeyValue();
 		}
 	}
 	PG_CATCH();
@@ -243,6 +244,10 @@ CitusExecutorRun(QueryDesc *queryDesc,
 
 		executorBoundParams = savedBoundParams;
 		ExecutorLevel--;
+		if (ExecutorLevel == 0 && PlannerLevel == 0)
+		{
+			ResetAllowedShardKeyValue();
+		}
 
 		PG_RE_THROW();
 	}

@@ -38,10 +38,12 @@
 #include "distributed/subplan_execution.h"
 #include "distributed/version_compat.h"
 #include "distributed/worker_log_messages.h"
+#include "distributed/commands.h"
 #include "utils/hsearch.h"
 #include "utils/guc.h"
 #include "utils/memutils.h"
 #include "storage/fd.h"
+#include "nodes/print.h"
 
 
 CoordinatedTransactionState CurrentCoordinatedTransactionState = COORD_TRANS_NONE;
@@ -102,6 +104,12 @@ MemoryContext CommitContext = NULL;
  */
 bool ShouldCoordinatedTransactionUse2PC = false;
 
+/*
+ * Distribution function arguments when delgated using forcePushdown flag.
+ */
+Const *AllowedDistributionColumnValue = NULL;
+bool ShouldAllowRestricted2PC = false;
+
 /* if disabled, distributed statements in a function may run as separate transactions */
 bool FunctionOpensTransactionBlock = true;
 
@@ -118,7 +126,6 @@ static void CoordinatedSubTransactionCallback(SubXactEvent event, SubTransaction
 static void AdjustMaxPreparedTransactions(void);
 static void PushSubXact(SubTransactionId subId);
 static void PopSubXact(SubTransactionId subId);
-static bool MaybeExecutingUDF(void);
 static void ResetGlobalVariables(void);
 static bool SwallowErrors(void (*func)(void));
 static void ForceAllInProgressConnectionsToClose(void);
@@ -182,6 +189,63 @@ InCoordinatedTransaction(void)
 {
 	return CurrentCoordinatedTransactionState != COORD_TRANS_NONE &&
 		   CurrentCoordinatedTransactionState != COORD_TRANS_IDLE;
+}
+
+
+/*
+ * Sets a flag to true indicating that the current node is executing a delegated
+ * function call, using forcePushdown, within a distributed transaction issued
+ * by the coordinator. Also, saves the distribution argument.
+ */
+void
+EnableInForceDelegatedFuncExecution(Const *distArgument)
+{
+	MemoryContext oldcontext = MemoryContextSwitchTo(TopTransactionContext);
+	elog(DEBUG1, "Saving Distribution Argument: %s",
+		 pretty_format_node_dump(nodeToString(distArgument)));
+	AllowedDistributionColumnValue = copyObject(distArgument);
+	ShouldAllowRestricted2PC = true;
+	MemoryContextSwitchTo(oldcontext);
+}
+
+
+void
+ResetAllowedShardKeyValue(void)
+{
+	AllowedDistributionColumnValue = NULL;
+}
+
+
+/*
+ * Returns true if a forcePushdown function distribution is executed in
+ * the current transaction.
+ */
+bool
+GetInForceDelegatedFuncExecution()
+{
+	return ShouldAllowRestricted2PC;
+}
+
+
+bool
+IsShardKeyValueAllowed(Const *shardKey)
+{
+	if (GetLocalGroupId() == COORDINATOR_GROUP_ID)
+	{
+		/* No check in the coordinator */
+		return true;
+	}
+
+	if (!AllowedDistributionColumnValue)
+	{
+		return true;
+	}
+
+	elog(DEBUG1, "Comparing saved:%s with Shard key: %s",
+		 pretty_format_node_dump(nodeToString(AllowedDistributionColumnValue)),
+		 pretty_format_node_dump(nodeToString(shardKey)));
+
+	return equal(AllowedDistributionColumnValue, shardKey);
 }
 
 
@@ -459,7 +523,7 @@ CoordinatedTransactionCallback(XactEvent event, void *arg)
 		case XACT_EVENT_PARALLEL_PRE_COMMIT:
 		case XACT_EVENT_PRE_PREPARE:
 		{
-			if (InCoordinatedTransaction())
+			if (InCoordinatedTransaction() && (!GetInForceDelegatedFuncExecution()))
 			{
 				ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 								errmsg("cannot use 2PC in transactions involving "
@@ -551,6 +615,8 @@ ResetGlobalVariables()
 	TransactionModifiedNodeMetadata = false;
 	MetadataSyncOnCommit = false;
 	ResetWorkerErrorIndication();
+	AllowedDistributionColumnValue = NULL;
+	ShouldAllowRestricted2PC = false;
 }
 
 
@@ -784,7 +850,7 @@ IsMultiStatementTransaction(void)
  * If the planner is being called from the executor, then we may also be in
  * a UDF.
  */
-static bool
+bool
 MaybeExecutingUDF(void)
 {
 	return ExecutorLevel > 1 || (ExecutorLevel == 1 && PlannerLevel > 0);

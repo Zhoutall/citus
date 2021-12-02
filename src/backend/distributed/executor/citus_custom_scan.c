@@ -40,6 +40,7 @@
 #include "optimizer/clauses.h"
 #include "utils/memutils.h"
 #include "utils/rel.h"
+#include "utils/datum.h"
 
 
 /* functions for creating custom scan nodes */
@@ -59,6 +60,8 @@ static DistributedPlan * CopyDistributedPlanWithoutCache(
 	DistributedPlan *originalDistributedPlan);
 static void CitusEndScan(CustomScanState *node);
 static void CitusReScan(CustomScanState *node);
+
+/* static void EnsureDelegatedFunctionSafeExecution(List *taskList); */
 
 
 /* create custom scan methods for all executors */
@@ -188,6 +191,16 @@ CitusBeginScan(CustomScanState *node, EState *estate, int eflags)
 	else
 	{
 		CitusBeginModifyScan(node, estate, eflags);
+	}
+
+	Job *workerJob = scanState->distributedPlan->workerJob;
+
+	if (!IsShardKeyValueAllowed(workerJob->partitionKeyValue))
+	{
+		ereport(ERROR, (errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+						errmsg("queries must filter by distribution argument "
+							   "when using forced function pushdown"),
+						errhint("consider turning off the flag force_pushdown instead")));
 	}
 
 	/*

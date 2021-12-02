@@ -175,14 +175,17 @@ MarkObjectDistributed(const ObjectAddress *distAddress)
 	if (EnableDependencyCreation)
 	{
 		/* create a list by adding the address of value to not to have warning */
+		bool forcePushdown = false;
 		List *objectAddressList = list_make1((ObjectAddress *) distAddress);
 		List *distArgumetIndexList = list_make1_int(INVALID_DISTRIBUTION_ARGUMENT_INDEX);
 		List *colocationIdList = list_make1_int(INVALID_COLOCATION_ID);
+		List *forcePushdownList = list_make1((bool *) &forcePushdown);
 
 		char *workerPgDistObjectUpdateCommand =
 			MarkObjectsDistributedCreateCommand(objectAddressList,
 												distArgumetIndexList,
-												colocationIdList);
+												colocationIdList,
+												forcePushdownList);
 		SendCommandToWorkersWithMetadata(workerPgDistObjectUpdateCommand);
 	}
 }

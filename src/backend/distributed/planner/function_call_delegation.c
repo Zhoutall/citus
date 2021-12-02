@@ -41,6 +41,7 @@
 #include "nodes/nodeFuncs.h"
 #include "nodes/parsenodes.h"
 #include "nodes/primnodes.h"
+#include "nodes/print.h"
 #include "optimizer/clauses.h"
 #include "parser/parse_coerce.h"
 #include "parser/parsetree.h"
@@ -56,6 +57,8 @@ struct ParamWalkerContext
 };
 
 static bool contain_param_walker(Node *node, void *context);
+static void CheckDelegatedFunctionExecution(DistributedPlanningContext *planContext);
+static bool IsQuerySimple(Query *query);
 
 
 /*
@@ -102,8 +105,10 @@ TryToDelegateFunctionCall(DistributedPlanningContext *planContext)
 {
 	bool colocatedWithReferenceTable = false;
 	ShardPlacement *placement = NULL;
-	DistributedPlan *distributedPlan = CitusMakeNode(DistributedPlan);
 	struct ParamWalkerContext walkerParamContext = { 0 };
+	bool inTransactionBlock = false;
+	FuncExpr *funcExpr = NULL;
+	bool functionInFromList = false;
 
 	if (!CitusHasBeenLoaded() || !CheckCitusVersion(DEBUG4))
 	{
@@ -116,8 +121,10 @@ TryToDelegateFunctionCall(DistributedPlanningContext *planContext)
 	{
 		/*
 		 * Do not delegate from workers if it is initiated by Citus already.
-		 * It means that this function has already been delegated to this node.
+		 * It means that this function has already been delegated to this node. If
+		 * the function is forcefully delegated, capture the distribution argument.
 		 */
+		CheckDelegatedFunctionExecution(planContext);
 		return NULL;
 	}
 
@@ -168,9 +175,28 @@ TryToDelegateFunctionCall(DistributedPlanningContext *planContext)
 			{
 				RangeTblEntry *rtentry = rt_fetch(reference->rtindex,
 												  planContext->query->rtable);
-				if (rtentry->rtekind != RTE_RESULT)
+
+				if (rtentry->rtekind == RTE_FUNCTION &&
+					list_length(rtentry->functions) == 1)
+				{
+					RangeTblFunction *rtfunc = (RangeTblFunction *) linitial(
+						rtentry->functions);
+
+					if (IsA(rtfunc->funcexpr, FuncExpr))
+					{
+						/* function from the FROM clause e.g. SELECT * FROM fn() */
+						functionInFromList = true;
+						funcExpr = (FuncExpr *) rtfunc->funcexpr;
+					}
+					else
+					{
+						return NULL;
+					}
+				}
+				else if (rtentry->rtekind != RTE_RESULT)
 				{
 					/* e.g. SELECT f() FROM rel */
+					ereport(DEBUG4, (errmsg("FromList item is not empty")));
 					return NULL;
 				}
 			}
@@ -199,13 +225,28 @@ TryToDelegateFunctionCall(DistributedPlanningContext *planContext)
 	}
 
 	TargetEntry *targetEntry = (TargetEntry *) linitial(targetList);
-	if (!IsA(targetEntry->expr, FuncExpr))
+	if (IsA(targetEntry->expr, FuncExpr))
+	{
+		if (functionInFromList)
+		{
+			/* We have function calls in both the SELECT fn() and FROM fn() */
+			ereport(DEBUG4, (errmsg("Functions in both the Target and From list")));
+			return NULL;
+		}
+		else
+		{
+			/* function from the SELECT clause e.g. SELECT fn() FROM  */
+			funcExpr = (FuncExpr *) targetEntry->expr;
+		}
+	}
+	else if (!functionInFromList)
 	{
 		/* target list item is not a function call */
+		ereport(DEBUG4, (errmsg(
+							 "Either Target or From list item is not a function call")));
 		return NULL;
 	}
 
-	FuncExpr *funcExpr = (FuncExpr *) targetEntry->expr;
 	DistObjectCacheEntry *procedure = LookupDistObjectCacheEntry(ProcedureRelationId,
 																 funcExpr->funcid, 0);
 	if (procedure == NULL || !procedure->isDistributed)
@@ -230,10 +271,58 @@ TryToDelegateFunctionCall(DistributedPlanningContext *planContext)
 
 	if (IsMultiStatementTransaction())
 	{
-		/* cannot delegate function calls in a multi-statement transaction */
-		ereport(DEBUG1, (errmsg("not pushing down function calls in "
-								"a multi-statement transaction")));
-		return NULL;
+		if (procedure->forcePushdown && !IsCitusInitiatedRemoteBackend())
+		{
+			Node *partitionValueNode = (Node *) list_nth(funcExpr->args,
+														 procedure->distributionArgIndex);
+
+			if (!IsA(partitionValueNode, Const))
+			{
+				ereport(DEBUG1, (errmsg(
+									 "distribution argument value must be a constant when using force_pushdown flag")));
+				return NULL;
+			}
+
+			/*
+			 * If the expression is simple, such as, SELECT fn() in
+			 * PL/PgSQL code, PL engine is doing simple expression
+			 * evaluation, which can't interpret the CustomScan Node.
+			 */
+			if (MaybeExecutingUDF() && !functionInFromList &&
+				IsQuerySimple(planContext->query))
+			{
+				ereport(DEBUG1, (errmsg(
+									 "Skipping delegation of function from a PL/PgSQL simple expression")));
+				return NULL;
+			}
+
+			/*
+			 * When is flag is on, delegate the function call in a multi-statement
+			 * transaction but with restrictions.
+			 */
+			ereport(DEBUG1, (errmsg("pushing down function call in "
+									"a multi-statement transaction")));
+			inTransactionBlock = true;
+		}
+		else
+		{
+			/* cannot delegate function calls in a multi-statement transaction */
+			ereport(DEBUG1, (errmsg("not pushing down function calls in "
+									"a multi-statement transaction")));
+			return NULL;
+		}
+	}
+	else
+	{
+		/*
+		 * For now, let's not push the function from the FROM clause unless it's in a
+		 * multistatement transaction with the forcePushdown flag ON.
+		 */
+		if (functionInFromList)
+		{
+			ereport(DEBUG4, (errmsg("function from the FROM clause is not pushed")));
+			return NULL;
+		}
 	}
 
 	if (contain_volatile_functions((Node *) funcExpr->args))
@@ -284,7 +373,7 @@ TryToDelegateFunctionCall(DistributedPlanningContext *planContext)
 	/* return if we could not find a placement */
 	if (placement == NULL)
 	{
-		return false;
+		return NULL;
 	}
 
 	WorkerNode *workerNode = FindWorkerNode(placement->nodeName, placement->nodePort);
@@ -327,7 +416,25 @@ TryToDelegateFunctionCall(DistributedPlanningContext *planContext)
 	ereport(DEBUG1, (errmsg("pushing down the function call")));
 
 	Task *task = CitusMakeNode(Task);
-	task->taskType = READ_TASK;
+
+	/*
+	 * In a multi-statement block the function should be part of the sorrounding
+	 * transaction, at this time, not knowing the operations in the function, it
+	 * is safe to assume that it's a write task.
+	 *
+	 * TODO: We should compile the function to see the internals of the function
+	 * and find if this has read-only tasks, does it involve doing a remote task
+	 * or queries involving non-distribution column, etc.
+	 */
+	if (inTransactionBlock)
+	{
+		task->taskType = MODIFY_TASK;
+	}
+	else
+	{
+		task->taskType = READ_TASK;
+	}
+
 	task->taskPlacementList = list_make1(placement);
 	SetTaskQueryIfShouldLazyDeparse(task, planContext->query);
 	task->anchorShardId = placement->shardId;
@@ -338,7 +445,7 @@ TryToDelegateFunctionCall(DistributedPlanningContext *planContext)
 	job->jobQuery = planContext->query;
 	job->taskList = list_make1(task);
 
-	distributedPlan = CitusMakeNode(DistributedPlan);
+	DistributedPlan *distributedPlan = CitusMakeNode(DistributedPlan);
 	distributedPlan->workerJob = job;
 	distributedPlan->combineQuery = NULL;
 	distributedPlan->expectResults = true;
@@ -448,4 +555,154 @@ ShardPlacementForFunctionColocatedWithReferenceTable(CitusTableCacheEntry *cache
 	}
 
 	return (ShardPlacement *) linitial(placementList);
+}
+
+
+/*
+ * Checks to see if the procedure is being executed on a worker after delegated
+ * by the coordinator. If the flag forcePushdown is set, capture the distribution
+ * argument value, to be used by the planner to make sure that function uses only
+ * the colocated shards of the distribution argument.
+ */
+void
+CheckDelegatedFunctionExecution(DistributedPlanningContext *planContext)
+{
+	List *targetList = planContext->query->targetList;
+	FromExpr *joinTree = planContext->query->jointree;
+	FuncExpr *funcExpr = NULL;
+
+	if (list_length(targetList) > 1 || list_length(joinTree->fromlist) > 1)
+	{
+		/* multiple target list or from list items */
+		return;
+	}
+
+	/*
+	 * Look for a function in the SELECT clause.
+	 */
+	if (list_length(targetList) == 1)
+	{
+		TargetEntry *targetEntry = (TargetEntry *) linitial(targetList);
+		if (IsA(targetEntry->expr, FuncExpr))
+		{
+			funcExpr = (FuncExpr *) targetEntry->expr;
+		}
+	}
+
+	/*
+	 * Look for a function in the FROM clause.
+	 */
+	if (list_length(joinTree->fromlist) == 1)
+	{
+		RangeTblRef *reference = linitial(joinTree->fromlist);
+		if (IsA(reference, RangeTblRef))
+		{
+			RangeTblEntry *rtentry = rt_fetch(reference->rtindex,
+											  planContext->query->rtable);
+
+			if (rtentry->rtekind == RTE_FUNCTION && list_length(rtentry->functions) == 1)
+			{
+				RangeTblFunction *rtfunc = (RangeTblFunction *) linitial(
+					rtentry->functions);
+				if (IsA(rtfunc->funcexpr, FuncExpr))
+				{
+					if (funcExpr)
+					{
+						/* Function in both the SELECT and FROM list */
+						return;
+					}
+					else
+					{
+						funcExpr = (FuncExpr *) rtfunc->funcexpr;
+					}
+				}
+			}
+		}
+	}
+
+	if (!funcExpr)
+	{
+		/* No function in either SELECT or FROM list */
+		return;
+	}
+
+	DistObjectCacheEntry *procedure = LookupDistObjectCacheEntry(ProcedureRelationId,
+																 funcExpr->funcid, 0);
+	Assert(procedure != NULL);
+
+	if (procedure->isDistributed && procedure->forcePushdown)
+	{
+		/*
+		 * On the coordinator PartiallyEvaluateExpression() descends into an
+		 * expression tree to evaluate expressions that can be resolved to a
+		 * constant. Expressions containing a Var are skipped, since the value
+		 * of the Var is not known on the coordinator.
+		 */
+		Node *partitionValueNode = (Node *) list_nth(funcExpr->args,
+													 procedure->distributionArgIndex);
+		Assert(partitionValueNode);
+		partitionValueNode = strip_implicit_coercions(partitionValueNode);
+
+		if (IsA(partitionValueNode, Param))
+		{
+			Param *partitionParam = (Param *) partitionValueNode;
+
+			if (partitionParam->paramkind == PARAM_EXTERN)
+			{
+				/* Don't log a message, we should end up here again without a parameter */
+				DissuadePlannerFromUsingPlan(planContext->plan);
+				return;
+			}
+		}
+
+		if (IsA(partitionValueNode, Const))
+		{
+			elog(DEBUG1, "Pushdown argument: %s",
+				 pretty_format_node_dump(nodeToString(partitionValueNode)));
+			EnableInForceDelegatedFuncExecution((Const *) partitionValueNode);
+		}
+		else
+		{
+			/*
+			 * Var node e.g. select fn(col) from table where col=150;
+			 * Param(PARAM_EXEC) node e.g. SELECT fn((SELECT col from test_nested where col=val))
+			 */
+			elog(NOTICE, "Non-constant Pushdown argument: ");
+			ereport(ERROR, (errmsg(
+								"Non-constant arguments for forcePushdown functions not supported")));
+		}
+	}
+	else
+	{
+		/* not a delegated function call within a 2PC */
+		return;
+	}
+}
+
+
+/*
+ * Function checks only for the query clauses, and not the FROM and WHERE list.
+ */
+static bool
+IsQuerySimple(Query *query)
+{
+	if (query->hasAggs ||
+		query->hasWindowFuncs ||
+		query->hasTargetSRFs ||
+		query->hasSubLinks ||
+		query->cteList ||
+		query->groupClause ||
+		query->groupingSets ||
+		query->havingQual ||
+		query->windowClause ||
+		query->distinctClause ||
+		query->sortClause ||
+		query->limitOffset ||
+		query->limitCount ||
+		query->setOperations)
+	{
+		return false;
+	}
+
+	return true;
 }

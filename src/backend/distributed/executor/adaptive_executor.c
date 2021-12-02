@@ -161,9 +161,11 @@
 #include "distributed/shared_connection_stats.h"
 #include "distributed/subplan_execution.h"
 #include "distributed/transaction_management.h"
+#include "distributed/transaction_identifier.h"
 #include "distributed/tuple_destination.h"
 #include "distributed/version_compat.h"
 #include "distributed/worker_protocol.h"
+#include "distributed/backend_data.h"
 #include "lib/ilist.h"
 #include "portability/instr_time.h"
 #include "storage/fd.h"
@@ -715,6 +717,7 @@ static void SetAttributeInputMetadata(DistributedExecution *execution,
 static void LookupTaskPlacementHostAndPort(ShardPlacement *taskPlacement, char **nodeName,
 										   int *nodePort);
 static bool IsDummyPlacement(ShardPlacement *taskPlacement);
+static void EnsureDelegatedFunctionSafeExecution(List *taskList);
 
 /*
  * AdaptiveExecutorPreExecutorRun gets called right before postgres starts its executor
@@ -1290,6 +1293,9 @@ StartDistributedExecution(DistributedExecution *execution)
 		 */
 		RecordParallelRelationAccessForTaskList(execution->remoteAndLocalTaskList);
 	}
+
+	/* Make sure all the shards are local to the node */
+	EnsureDelegatedFunctionSafeExecution(execution->remoteTaskList);
 }
 
 
@@ -5592,5 +5598,35 @@ ExtractParametersFromParamList(ParamListInfo paramListInfo,
 
 		(*parameterValues)[parameterIndex] = OidOutputFunctionCall(typeOutputFunctionId,
 																   parameterData->value);
+	}
+}
+
+
+/*
+ * Delegated functions which are not part of another transaction are naturally safe,
+ * but if it's part of an outer transaction (a 2PC), we should ensure that the current
+ * task will not do remote(connection) activity to ensure the transactional integrity
+ * of the current participating 2PC.
+ */
+static void
+EnsureDelegatedFunctionSafeExecution(List *taskList)
+{
+	if (taskList)
+	{
+		/*
+		 * When the following conditions are met, raise an exception.
+		 * 1) Current process is a remote connection
+		 * 2) In a coordinated distributed transaction
+		 * 3) Distributed transaction (ID) is initiated else where
+		 */
+		DistributedTransactionId *transactionId = GetCurrentDistributedTransactionId();
+
+		if (IsCitusInitiatedRemoteBackend() &&
+			MyBackendIsInDisributedTransaction() &&
+			transactionId->initiatorNodeIdentifier != GetLocalGroupId())
+		{
+			ereport(ERROR, (errmsg(
+								"cannot access other workers from operations on shards")));
+		}
 	}
 }
