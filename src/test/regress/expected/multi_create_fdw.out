@@ -59,7 +59,15 @@ SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
      3373
 (1 row)
 
+ALTER SERVER foreign_server_1 OWNER TO postgres;
 \c - - - :master_port
+-- verify the owner is changed on the worker
+SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
+ srvowner
+---------------------------------------------------------------------
+     3373
+(1 row)
+
 DROP SERVER IF EXISTS foreign_server_1 CASCADE;
 \c - - - :worker_1_port
 -- verify that the server is dropped on the worker

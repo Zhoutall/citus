@@ -42,8 +42,11 @@ ALTER SERVER foreign_server_1 OWNER TO pg_monitor;
 SELECT srvoptions FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
 -- verify the owner is changed
 SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
+ALTER SERVER foreign_server_1 OWNER TO postgres;
 \c - - - :master_port
 
+-- verify the owner is changed on the worker
+SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
 DROP SERVER IF EXISTS foreign_server_1 CASCADE;
 \c - - - :worker_1_port
 -- verify that the server is dropped on the worker
