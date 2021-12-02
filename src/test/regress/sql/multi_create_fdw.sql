@@ -19,7 +19,7 @@ set citus.enable_ddl_propagation to on;
 
 -- test propagating foreign server creation
 CREATE EXTENSION postgres_fdw;
-CREATE SERVER foreign_server
+CREATE SERVER foreign_server TYPE 'test_type' VERSION 'v1'
         FOREIGN DATA WRAPPER postgres_fdw
         OPTIONS (host 'testhost', port '5432', dbname 'testdb');
 

@@ -120,12 +120,12 @@ AppendCreateForeignServerStmt(StringInfo buf, CreateForeignServerStmt *stmt)
 
 	if (stmt->servertype)
 	{
-		appendStringInfo(buf, "TYPE %s ", stmt->servertype);
+		appendStringInfo(buf, "TYPE %s ", quote_literal_cstr(stmt->servertype));
 	}
 
 	if (stmt->version)
 	{
-		appendStringInfo(buf, "VERSION %s ", stmt->version);
+		appendStringInfo(buf, "VERSION %s ", quote_literal_cstr(stmt->version));
 	}
 
 	appendStringInfo(buf, "FOREIGN DATA WRAPPER %s ", stmt->fdwname);
