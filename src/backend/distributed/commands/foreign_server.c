@@ -244,7 +244,7 @@ PostprocessCreateForeignServerStmt(Node *node, const char *queryString)
 /*
  * CreateForeignServerStmtObjectAddress finds the ObjectAddress for the server
  * that is created by given CreateForeignServerStmt. If missingOk is false and if
- * the statistics does not exist, then it errors out.
+ * the server does not exist, then it errors out.
  *
  * Never returns NULL, but the objid in the address can be invalid if missingOk
  * was set to true.
