@@ -116,7 +116,7 @@ AppendCreateForeignServerStmt(StringInfo buf, CreateForeignServerStmt *stmt)
 		appendStringInfoString(buf, "IF NOT EXISTS ");
 	}
 
-	appendStringInfo(buf, "%s ", stmt->servername);
+	appendStringInfo(buf, "%s ", quote_identifier(stmt->servername));
 
 	if (stmt->servertype)
 	{
@@ -128,7 +128,7 @@ AppendCreateForeignServerStmt(StringInfo buf, CreateForeignServerStmt *stmt)
 		appendStringInfo(buf, "VERSION %s ", quote_literal_cstr(stmt->version));
 	}
 
-	appendStringInfo(buf, "FOREIGN DATA WRAPPER %s ", stmt->fdwname);
+	appendStringInfo(buf, "FOREIGN DATA WRAPPER %s ", quote_identifier(stmt->fdwname));
 
 	AppendCreateForeignServerOptions(buf, stmt);
 }
@@ -163,7 +163,7 @@ AppendCreateForeignServerOptions(StringInfo buf, CreateForeignServerStmt *stmt)
 static void
 AppendAlterForeignServerStmt(StringInfo buf, AlterForeignServerStmt *stmt)
 {
-	appendStringInfo(buf, "ALTER SERVER %s ", stmt->servername);
+	appendStringInfo(buf, "ALTER SERVER %s ", quote_identifier(stmt->servername));
 
 	if (stmt->has_version)
 	{
@@ -218,14 +218,16 @@ static void
 AppendAlterForeignServerRenameStmt(StringInfo buf, RenameStmt *stmt)
 {
 	appendStringInfo(buf, "ALTER SERVER %s RENAME TO %s",
-					 strVal(stmt->object), stmt->newname);
+					 quote_identifier(strVal(stmt->object)),
+					 quote_identifier(stmt->newname));
 }
 
 
 static void
 AppendAlterForeignServerOwnerStmt(StringInfo buf, AlterOwnerStmt *stmt)
 {
-	appendStringInfo(buf, "ALTER SERVER %s OWNER TO ", strVal(stmt->object));
+	const char *servername = quote_identifier(strVal(stmt->object));
+	appendStringInfo(buf, "ALTER SERVER %s OWNER TO ", servername);
 
 	appendStringInfo(buf, "%s", RoleSpecString(stmt->newowner, true));
 }
@@ -253,7 +255,7 @@ AppendServerNames(StringInfo buf, DropStmt *stmt)
 	Value *serverValue = NULL;
 	foreach_ptr(serverValue, stmt->objects)
 	{
-		char *serverString = strVal(serverValue);
+		const char *serverString = quote_identifier(strVal(serverValue));
 		appendStringInfo(buf, "%s", serverString);
 
 		if (serverValue != llast(stmt->objects))
