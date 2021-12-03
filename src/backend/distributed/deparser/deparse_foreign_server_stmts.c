@@ -147,8 +147,8 @@ AppendCreateForeignServerOptions(StringInfo buf, CreateForeignServerStmt *stmt)
 	DefElem *def = NULL;
 	foreach_ptr(def, stmt->options)
 	{
-		const char *value = defGetString(def);
-		appendStringInfo(buf, "%s \'%s\'", def->defname, value);
+		const char *value = quote_literal_cstr(defGetString(def));
+		appendStringInfo(buf, "%s \'%s\'", quote_literal_cstr(def->defname), value);
 
 		if (def != llast(stmt->options))
 		{
