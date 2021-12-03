@@ -30,24 +30,24 @@ ALTER SERVER foreign_server OPTIONS (ADD passfile 'to_be_dropped');
 ALTER SERVER foreign_server OPTIONS (SET host 'localhost');
 ALTER SERVER foreign_server OPTIONS (DROP port, DROP dbname);
 ALTER SERVER foreign_server OPTIONS (ADD port :'master_port', dbname 'regression', DROP passfile);
-ALTER SERVER foreign_server RENAME TO foreign_server_1;
+ALTER SERVER foreign_server RENAME TO "foreign'server_1!";
 
 -- test alter owner
-SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
-ALTER SERVER foreign_server_1 OWNER TO pg_monitor;
+SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign''server_1!';
+ALTER SERVER "foreign'server_1!" OWNER TO pg_monitor;
 \c - - - :worker_1_port
 -- verify that the server is renamed on the worker
-SELECT srvoptions FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
+SELECT srvoptions FROM pg_foreign_server WHERE srvname = 'foreign''server_1!';
 -- verify the owner is changed
-SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
+SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign''server_1!';
 -- this doesn't error out for now, since we don't have object metadata on the worker
-ALTER SERVER foreign_server_1 OWNER TO postgres;
+ALTER SERVER "foreign'server_1!" OWNER TO postgres;
 \c - - - :master_port
 
 -- verify the owner is changed on the worker
-SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
-DROP SERVER IF EXISTS foreign_server_1 CASCADE;
+SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign''server_1!';
+DROP SERVER IF EXISTS "foreign'server_1!" CASCADE;
 \c - - - :worker_1_port
 -- verify that the server is dropped on the worker
-SELECT COUNT(*)=0 FROM pg_foreign_server WHERE srvname = 'foreign_server_1';
+SELECT COUNT(*)=0 FROM pg_foreign_server WHERE srvname = 'foreign''server_1!';
 \c - - - :master_port
