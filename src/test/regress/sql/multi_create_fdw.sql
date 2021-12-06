@@ -15,6 +15,17 @@ LANGUAGE C STRICT;
 CREATE FOREIGN DATA WRAPPER fake_fdw HANDLER fake_fdw_handler;
 CREATE SERVER fake_fdw_server FOREIGN DATA WRAPPER fake_fdw;
 
+CREATE SCHEMa test_dependent_schema;
+CREATE EXTENSION postgres_fdw WITH SCHEMA test_dependent_schema;
+CREATE SERVER foreign_server_schema_dependent
+        FOREIGN DATA WRAPPER postgres_fdw
+        OPTIONS (host 'testhost', port '5432', dbname 'testdb');
+
+\c - - - :worker_1_port
+SELECT COUNT(*) FROM pg_namespace WHERE nspname = 'test_dependent_schema';
+\c - - - :master_port
+DROP EXTENSION postgres_fdw CASCADE;
+
 -- test propagating foreign server creation
 CREATE EXTENSION postgres_fdw;
 CREATE SERVER foreign_server TYPE 'test_type' VERSION 'v1'
