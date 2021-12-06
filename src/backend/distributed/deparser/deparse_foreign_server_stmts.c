@@ -199,7 +199,7 @@ AppendAlterForeignServerOptions(StringInfo buf, AlterForeignServerStmt *stmt)
 
 		if (action != DEFELEM_DROP)
 		{
-			const char *value = defGetString(def);
+			const char *value = quote_identifier(defGetString(def));
 
 			appendStringInfo(buf, " \'%s\'", value);
 		}
