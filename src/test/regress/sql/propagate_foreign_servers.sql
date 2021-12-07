@@ -44,8 +44,7 @@ ALTER SERVER "foreign'server_1!" OWNER TO pg_monitor;
 SELECT srvoptions FROM pg_foreign_server WHERE srvname = 'foreign''server_1!';
 -- verify the owner is changed
 SELECT srvowner FROM pg_foreign_server WHERE srvname = 'foreign''server_1!';
--- this doesn't error out for now, since we don't have object metadata on the worker
-ALTER SERVER "foreign'server_1!" OWNER TO postgres;
+
 \c - - - :master_port
 
 -- verify the owner is changed on the coordinator

@@ -226,4 +226,3 @@ SELECT stop_metadata_sync_to_node('localhost', :worker_2_port);
 ---------------------------------------------------------------------
 
 (1 row)
-

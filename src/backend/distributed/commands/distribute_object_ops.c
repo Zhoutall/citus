@@ -190,6 +190,7 @@ static DistributeObjectOps Any_CreateForeignServer = {
 	.preprocess = PreprocessCreateForeignServerStmt,
 	.postprocess = PostprocessCreateForeignServerStmt,
 	.address = CreateForeignServerStmtObjectAddress,
+	.markDistributed = true,
 };
 static DistributeObjectOps Any_CreateStatistics = {
 	.deparse = DeparseCreateStatisticsStmt,

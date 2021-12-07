@@ -235,8 +235,6 @@ PostprocessCreateForeignServerStmt(Node *node, const char *queryString)
 	ObjectAddress typeAddress = GetObjectAddressFromParseTree(node, missingOk);
 	EnsureDependenciesExistOnAllNodes(&typeAddress);
 
-	MarkObjectDistributed(&typeAddress);
-
 	return NIL;
 }
 
