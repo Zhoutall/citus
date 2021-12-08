@@ -19,6 +19,8 @@
 #include "distributed/metadata_sync.h"
 #include "distributed/worker_transaction.h"
 #include "foreign/foreign.h"
+#include "nodes/makefuncs.h"
+#include "nodes/parsenodes.h"
 #include "nodes/primnodes.h"
 
 static Node * RecreateForeignServerStmt(Oid serverId);
@@ -291,17 +293,33 @@ RecreateForeignServerStmt(Oid serverId)
 	CreateForeignServerStmt *createStmt = makeNode(CreateForeignServerStmt);
 
 	/* set server name and if_not_exists fields */
-	createStmt->servername = server->servername;
+	createStmt->servername = pstrdup(server->servername);
 	createStmt->if_not_exists = true;
 
 	/* set foreign data wrapper */
 	ForeignDataWrapper *fdw = GetForeignDataWrapper(server->fdwid);
-	createStmt->fdwname = fdw->fdwname;
+	createStmt->fdwname = pstrdup(fdw->fdwname);
 
 	/* set all fields using the existing server */
-	createStmt->options = server->options;
-	createStmt->servertype = server->servertype;
-	createStmt->version = server->serverversion;
+	if (server->servertype != NULL)
+	{
+		createStmt->servertype = pstrdup(server->servertype);
+	}
+
+	if (server->serverversion != NULL)
+	{
+		createStmt->version = pstrdup(server->serverversion);
+	}
+
+	createStmt->options = NIL;
+
+	int location = -1;
+	DefElem *option = NULL;
+	foreach_ptr(option, server->options)
+	{
+		DefElem *copyOption = makeDefElem(option->defname, option->arg, location);
+		createStmt->options = lappend(createStmt->options, copyOption);
+	}
 
 	return (Node *) createStmt;
 }
