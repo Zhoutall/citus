@@ -6,7 +6,7 @@ orbs:
 parameters:
   image_suffix:
     type: string
-    default: '-dev-202112030707'
+    default: '-dev-61239dd'
 
 jobs:
   build:
