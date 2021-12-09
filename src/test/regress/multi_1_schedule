@@ -225,7 +225,6 @@ test: multi_router_planner_fast_path
 test: multi_large_shardid
 
 test: check_mx
-test: turn_mx_off
 # ----------
 #  multi_size_queries tests various size commands on distributed tables
 # ----------
