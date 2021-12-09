@@ -44,7 +44,8 @@ SELECT citus.mitmproxy('conn.delay(500)');
 (1 row)
 
 ALTER TABLE products ADD CONSTRAINT p_key PRIMARY KEY(product_no);
-ERROR:  could not establish any connections to the node localhost:xxxxx after 400 ms
+WARNING:  could not establish connection after 400 ms
+ERROR:  connection to the remote node localhost:xxxxx failed
 SELECT citus.mitmproxy('conn.allow()');
  mitmproxy
 ---------------------------------------------------------------------
@@ -203,7 +204,7 @@ SELECT citus.mitmproxy('conn.delay(500)');
 (1 row)
 
 INSERT INTO products VALUES (100, '100', 100);
-ERROR:  could not establish any connections to the node localhost:xxxxx after 400 ms
+ERROR:  connection to the remote node localhost:xxxxx failed
 COMMIT;
 SELECT
 	count(*) as invalid_placement_count
