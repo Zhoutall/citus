@@ -1260,27 +1260,6 @@ StartConnectionEstablishment(MultiConnection *connection, ConnectionHashKey *key
 
 
 /*
- * WarmUpConnParamsHash warms up the ConnParamsHash by loading all the
- * conn params for active primary nodes.
- */
-void
-WarmUpConnParamsHash(void)
-{
-	List *workerNodeList = ActivePrimaryNodeList(AccessShareLock);
-	WorkerNode *workerNode = NULL;
-	foreach_ptr(workerNode, workerNodeList)
-	{
-		ConnectionHashKey key;
-		strlcpy(key.hostname, workerNode->workerName, MAX_NODE_LENGTH);
-		key.port = workerNode->workerPort;
-		strlcpy(key.database, CurrentDatabaseName(), NAMEDATALEN);
-		strlcpy(key.user, CurrentUserName(), NAMEDATALEN);
-		FindOrCreateConnParamsEntry(&key);
-	}
-}
-
-
-/*
  * FindOrCreateConnParamsEntry searches ConnParamsHash for the given key,
  * if it is not found, it is created.
  */

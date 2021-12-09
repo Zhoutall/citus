@@ -283,5 +283,4 @@ extern void MarkConnectionConnected(MultiConnection *connection);
 extern double MillisecondsPassedSince(instr_time moment);
 extern long MillisecondsToTimeout(instr_time start, long msAfterStart);
 
-extern void WarmUpConnParamsHash(void);
 #endif /* CONNECTION_MANAGMENT_H */

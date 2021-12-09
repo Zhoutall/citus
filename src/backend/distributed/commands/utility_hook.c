@@ -69,6 +69,7 @@
 #include "tcop/utility.h"
 #include "utils/builtins.h"
 #include "utils/lsyscache.h"
+#include "utils/snapmgr.h"
 #include "utils/syscache.h"
 
 bool EnableDDLPropagation = true; /* ddl propagation is enabled */
@@ -1025,31 +1026,55 @@ ExecuteDistributedDDLJob(DDLJob *ddlJob)
 		/*
 		 * Start a new transaction to make sure CONCURRENTLY commands
 		 * on localhost do not block waiting for this transaction to finish.
+		 *
+		 * In addition to doing that, we also need to tell other backends
+		 * --including the ones spawned for connections opened to localhost to
+		 * build indexes on shards of this relation-- that concurrent index
+		 * builds can safely ignore us.
+		 *
+		 * Normally, DefineIndex() only does that if index doesn't have any
+		 * predicates (i.e.: where clause) and no index expressions at all.
+		 * However, now that we already called standard process utility,
+		 * index build on the shell table is finished anyway.
+		 *
+		 * The reason behind doing so is that we cannot guarantee not
+		 * grabbing any snapshots via adaptive executor, and the backends
+		 * creating indexes on local shards (if any) might block on waiting
+		 * for current xact of the current backend to finish, which would
+		 * cause self deadlocks that are not detectable.
 		 */
 		if (ddlJob->startNewTransaction)
 		{
 			/*
-			 * If cache is not populated, system catalog lookups will cause
-			 * the xmin of current backend to change. Then the last phase
-			 * of CREATE INDEX CONCURRENTLY, which is in a separate backend,
-			 * will hang waiting for our backend and result in a deadlock.
-			 *
-			 * We populate the cache before starting the next transaction to
-			 * avoid this. Most of the metadata has already been resolved in
-			 * planning phase, we only need to lookup metadata needed for
-			 * connection establishment.
+			 * To ensure not leaking any snapshots, pop active snapshot if we
+			 * had any.
 			 */
-			(void) CurrentDatabaseName();
+			if (ActiveSnapshotSet())
+			{
+				Snapshot activeSnapshot = GetActiveSnapshot();
+				PopActiveSnapshot();
+				UnregisterSnapshot(activeSnapshot);
+			}
 
-			/*
-			 * ConnParams (AuthInfo and PoolInfo) gets a snapshot, which
-			 * will blocks the remote connections to localhost. Hence we warm up
-			 * the cache here so that after we start a new transaction, the entries
-			 * will already be in the hash table, hence we won't be holding any snapshots.
-			 */
-			WarmUpConnParamsHash();
 			CommitTransactionCommand();
 			StartTransactionCommand();
+
+			/*
+			 * Tell other backends to ignore us, even if we grab any
+			 * snapshots via adaptive executor.
+			 *
+			 * Below code block is direct copy of pg function
+			 * set_indexsafe_procflags.
+			 *
+			 * Also see pg commit c98763bf51bf610b3ee7e209fc76c3ff9a6b3163.
+			 */
+			Assert(MyProc->xid == InvalidTransactionId &&
+				   MyProc->xmin == InvalidTransactionId);
+
+			LWLockAcquire(ProcArrayLock, LW_EXCLUSIVE);
+			MyProc->statusFlags |= PROC_IN_SAFE_IC;
+			ProcGlobal->statusFlags[MyProc->pgxactoff] = MyProc->statusFlags;
+			LWLockRelease(ProcArrayLock);
 		}
 
 		MemoryContext savedContext = CurrentMemoryContext;
